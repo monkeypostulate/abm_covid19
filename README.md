@@ -9,7 +9,7 @@
 <br>  Number of people in the model </b>
 - If we want to model Switzerland, the number of people is approximately 8.57 M.
 - If we want to model Italy, the number of people is approximately 60.58 M.
-
+* Parameter n
 <b>Assumption 1. </b>
 <br>
 <b>People'scontections </b> (Friendship, Family, co-workers, drive in the same bus to work, etc.)
@@ -17,16 +17,22 @@
 1.1 Random graph: people meet randomly on the street. Use random graph models G(n,p):
 - p, p*(n-1) is the expected number of people that a person is connected to.
 - n number of people (size of the network), and it comes from assumption 0.
+* Parameter: n
+* Output: Edge list
 <br>
 1.2  Stochastic block model: people meet in groups of friends, classrooms, workplace. 
 
 - Input size of the community
 - Probability that two individual in the same community meet.
 - Probability that two individual in different communities meet. (we can set it to zero).
-
-1.3  Preferantial attachment. A few people have a lot of contacts (a lot of friends, they work in places with a lot of contact with strangers). We can use Barabási–Albert algorithm.
-
+* Parameter: Vector with the size of the communities
+* Parameter: Matrix with the probability that people between and within communities meet. Simplification: All cells are equal to zero, except for the diagonal. The probability that people in different communities meet is calculated in 1.1
+* Output: Edge list
 <br>
+1.3  Preferantial attachment. A few people have a lot of contacts (a lot of friends, they work in places with a lot of contact with strangers). We can use Barabási–Albert algorithm. (Not finished)
+* Output: Edge list
+<br>
+The edges in the network consist of the edges constructed with 1.1, 1.2 & 1.3. However, edges appear only once. For instance, if we have the edge (a,b) in 1.1 and also in (a,b) 1.2, then it will only appear once.
 
 <b>Assumption 2.</b>
 <br>
@@ -35,6 +41,8 @@ Initial people infected
 - Percentage of people infected. Randomized in the whole population
 - Community infected, and percentage of people infected.
 - Network topology
+- Parameter: percentage of people infected
+- Parameter: (optional & more complex) percentage of people infected in a comunity.
 <br>
 
 <b>Assumption 3.</b>
