@@ -2,12 +2,18 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sat Mar 28 18:26:00 2020
-Reimplementation of notebook from luthars and lukas from abel ideas.
+Module for simulating abm graph dynamics for pandemics modeling
 @author: lg
 """
 import networkx as nx
 import numpy as np
-import matplotlib.pyplot as plt
+
+
+# Define global state definitions
+
+healthy = 0
+infected = 1
+recovered = 2
 
 def init_random(**options):
     '''Generate network according to assumed topology'''
@@ -42,9 +48,9 @@ def network_init(network_type, **options):
     return graph(**options)
 
 def init_node_states(G, fraction_infected):
-    healthy = 0
-    infected = 1
-#    recovered = 2
+#    healthy = 0
+#    infected = 1
+##    recovered = 2
     n_infected = np.int(np.floor(fraction_infected * G.number_of_nodes()))
 
     # Initialize infected nodes
@@ -60,7 +66,7 @@ def init_node_states(G, fraction_infected):
     nx.set_node_attributes(G, 0, 'n_contacts')
     nx.set_node_attributes(G, 0, 'n_infected_contacts')
     nx.set_node_attributes(G, 0, 'infected_by')
-    nx.set_node_attributes(G, 0, 'incubation_time')
+    nx.set_node_attributes(G, 0, 'time_infected')
     return G
     
 
@@ -70,17 +76,42 @@ def test_infection(p_infection):
     infected = 1
     return infected if np.random.random() < p_infection else healthy
 
+def update_time_infected(G):
+    infected = 1
+    '''Update time a node has been infected'''
+    infected_nodes = [n for n, v in G.nodes(data=True) if v['state'] == infected]  
+    for i_node in infected_nodes:
+        G.nodes[i_node]['time_infected'] += 1
+    return G
+        
+def check_recovery(G, recovery_time):
+    infected = 1
+    recovered = 2
+    '''Check if a node reached recovery time'''
+    infected_nodes = [n for n, v in G.nodes(data=True) if v['state'] == infected]
+    # If the node recovers reset the time_infected.
+    for i_node in infected_nodes:
+        if G.nodes[i_node]['time_infected'] >= recovery_time:
+            G.nodes[i_node]['time_infected'] = 0
+            G.nodes[i_node]['state'] = recovered
+    return G
+        
 def update_nodes(G, fraction_interacting, p_infection, p_contact, 
-                 recovery_rate = 0, 
+                 recovery_time = 0, contagious_time = 1000,
                  lockdown = False, people_met_in_lockdown = None, 
                  sociable = False):
     '''Set an interaction time point and update the node attributes'''
-    healthy = 0
-    infected = 1
-    recovered = 2
+#    healthy = 0
+#    infected = 1
+#    recovered = 2
     # Pick a subset of people to interact
     n_interacting = np.int(np.floor(fraction_interacting * G.number_of_nodes()))
     interacting_nodes = np.random.choice(G.number_of_nodes(), n_interacting, replace=False)
+    
+    # First check if the person recovers this time point.
+    G = update_time_infected(G)
+    G = check_recovery(G, recovery_time)
+    
     
     # Loop only over the interacting nodes
     for i_node in interacting_nodes:
@@ -88,89 +119,31 @@ def update_nodes(G, fraction_interacting, p_infection, p_contact,
             # Test if the node meets the neighbor
             if np.random.random() < p_contact:
                 # Since everyone starts with zero contacts, we can just sum up.
-                G.nodes[i_node]['n_contacts'] =+ 1
-                G.nodes[j_neighbor]['n_contacts'] =+ 1
+                G.nodes[i_node]['n_contacts'] += 1
+                G.nodes[j_neighbor]['n_contacts'] += 1
                 # Now if contact involves infected person
                 # Since everyone starts with zero contacts, we can just sum up.
+                # Test if neighbor infects node
                 if G.nodes[i_node]['state'] == healthy and \
                 G.nodes[j_neighbor]['state'] == infected:
-                    G.nodes[i_node]['n_infected_contacts'] =+ 1
-                    G.nodes[i_node]['state'] = test_infection(p_infection)
+                    G.nodes[i_node]['n_infected_contacts'] += 1
+                    if G.nodes[j_neighbor]['time_infected'] <= contagious_time:
+                        G.nodes[i_node]['state'] = test_infection(p_infection)
+                    if G.nodes[i_node]['state'] == infected:
+                        G.nodes[i_node]['infected_by'] = j_neighbor
+                # Test if node infects neighbor
                 elif G.nodes[i_node]['state'] == infected and \
                 G.nodes[j_neighbor]['state'] == healthy:
-                    G.nodes[j_neighbor]['n_infected_contacts'] =+ 1
-                    G.nodes[j_neighbor]['state'] = test_infection(p_infection)
+                    G.nodes[j_neighbor]['n_infected_contacts'] += 1
+                    if G.nodes[i_node]['time_infected'] <= contagious_time:
+                        G.nodes[j_neighbor]['state'] = test_infection(p_infection)
+                    if G.nodes[j_neighbor]['state'] == infected:
+                        G.nodes[j_neighbor]['infected_by'] = i_node
+                # Update interaction between two infected nodes
                 elif G.nodes[i_node]['state'] == infected and \
                 G.nodes[j_neighbor]['state'] == infected:
-                    G.nodes[i_node]['n_infected_contacts'] =+ 1
-                    G.nodes[j_neighbor]['n_infected_contacts'] =+ 1        
+                    G.nodes[i_node]['n_infected_contacts'] += 1
+                    G.nodes[j_neighbor]['n_infected_contacts'] += 1        
     
     return G
 
-
-#%%
-    
-# Define graph parameters
-options = {
-        'n': 600,
-        'p': 0.1,
-        'k': 3,
-        'directed': False,
-        'block_sizes': [200, 200, 200],
-        'p_blocks': [[0.8, 0, 0.8], 
-                     [0, 0, 0], 
-                     [0.8, 0, 0.1]]
-        }
-
-## Parameters defining lockdown
-## Fraction of people interacting each time point
-#fraction_interacting = 0.1
-#n_contacts = 4 # Average household size
-#fraction_contact = 0.1
-
-# Normal situation
-initial_fraction_infected = 0.1
-fraction_interacting = 0.1
-p_infection = 0.02
-p_contact = 0.2
-
-# Definition of states, maybe a global constant can be defined
-healthy = 0
-infected = 1
-recovered = 2
-
-# Number of simulation times
-n_sim_times = 60
-
-# Create random graph
-G_rand_sbm = network_init(1, **options)
-# Create stochastic block model
-G_sbm = network_init(2, **options)
-# Add block connections to random graph
-G_rand_sbm.add_edges_from(G_sbm.edges())
-G_rand_sbm = G_rand_sbm.to_undirected()
-
-n_infected = np.zeros(n_sim_times)
-
-# Initialize network
-G = init_node_states(G_rand_sbm, fraction_infected=initial_fraction_infected)
-# Extract node states, will make a method
-states = np.array(list(nx.get_node_attributes(G, 'state').values()))
-n_infected[0] = np.size(np.where(states == infected))
-
-# Run the simulation assuming one timestep per day
-for i_time in np.arange(1, n_sim_times):
-    G = update_nodes(G, fraction_interacting=fraction_interacting, 
-                 p_infection=p_infection, p_contact=p_contact)
-    # Extract node states, will make a method
-    states = np.array(list(nx.get_node_attributes(G, 'state').values()))
-    n_infected[i_time] = np.size(np.where(states == infected))
-    #nx.draw_spring(G, cmap=plt.get_cmap('viridis'), node_color=states)
-    
-plt.plot(n_infected)
-plt.xlabel('Time step (days)')
-plt.ylabel('Number of infected people')
-#%%
-plt.figure(num=1)
-
-plt.spy(nx.adjacency_matrix(G_sbm))
