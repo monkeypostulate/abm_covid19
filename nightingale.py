@@ -11,9 +11,9 @@ import numpy as np
 
 # Define global state definitions
 
-healthy = 0
-infected = 1
-recovered = 2
+healthy = int(0)
+infected = int(1)
+recovered = int(2)
 
 def init_random(**options):
     '''Generate network according to assumed topology'''
@@ -72,12 +72,12 @@ def init_node_states(G, fraction_infected):
 
 def test_infection(p_infection):
     '''Only call function to test if infetcted person will infect a healthy one'''
-    healthy = 0
-    infected = 1
+#    healthy = 0
+#    infected = 1
     return infected if np.random.random() < p_infection else healthy
 
 def update_time_infected(G):
-    infected = 1
+#    infected = 1
     '''Update time a node has been infected'''
     infected_nodes = [n for n, v in G.nodes(data=True) if v['state'] == infected]  
     for i_node in infected_nodes:
@@ -85,8 +85,8 @@ def update_time_infected(G):
     return G
         
 def check_recovery(G, recovery_time):
-    infected = 1
-    recovered = 2
+#    infected = 1
+#    recovered = 2
     '''Check if a node reached recovery time'''
     infected_nodes = [n for n, v in G.nodes(data=True) if v['state'] == infected]
     # If the node recovers reset the time_infected.
@@ -130,7 +130,7 @@ def update_nodes(G, fraction_interacting, p_infection, p_contact,
                     if G.nodes[j_neighbor]['time_infected'] <= contagious_time:
                         G.nodes[i_node]['state'] = test_infection(p_infection)
                     if G.nodes[i_node]['state'] == infected:
-                        G.nodes[i_node]['infected_by'] = j_neighbor
+                        G.nodes[i_node]['infected_by'] = int(j_neighbor)
                 # Test if node infects neighbor
                 elif G.nodes[i_node]['state'] == infected and \
                 G.nodes[j_neighbor]['state'] == healthy:
@@ -138,7 +138,7 @@ def update_nodes(G, fraction_interacting, p_infection, p_contact,
                     if G.nodes[i_node]['time_infected'] <= contagious_time:
                         G.nodes[j_neighbor]['state'] = test_infection(p_infection)
                     if G.nodes[j_neighbor]['state'] == infected:
-                        G.nodes[j_neighbor]['infected_by'] = i_node
+                        G.nodes[j_neighbor]['infected_by'] = int(i_node)
                 # Update interaction between two infected nodes
                 elif G.nodes[i_node]['state'] == infected and \
                 G.nodes[j_neighbor]['state'] == infected:
